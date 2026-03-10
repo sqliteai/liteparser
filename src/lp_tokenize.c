@@ -749,7 +749,7 @@ static void advance_pos(LpSrcPos *pos, const char *p, int n) {
 /* Declare the Lemon-generated parser interface */
 extern void *lp_ParserAlloc(void *(*)(size_t), LpParseContext *);
 extern void  lp_ParserFree(void *, void (*)(void *));
-extern void  lp_Parser(void *, int, LpToken, LpParseContext *);
+extern void  lp_Parser(void *, int, LpToken);
 
 /* Shared parse implementation — returns all statements via ctx.stmts */
 static int lp_parse_internal(const char *sql, arena_t *arena,
@@ -824,7 +824,7 @@ static int lp_parse_internal(const char *sql, arena_t *arena,
         token.n = (unsigned int)n;
         token.pos = ctx->cur_pos;
 
-        lp_Parser(parser, tokenType, token, ctx);
+        lp_Parser(parser, tokenType, token);
         lastTokenParsed = tokenType;
         advance_pos(&ctx->cur_pos, z, n);
         z += n;

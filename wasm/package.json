@@ -1,0 +1,40 @@
+{
+  "name": "@sqliteai/liteparser",
+  "version": "1.0.0",
+  "description": "SQLite SQL parser producing JSON ASTs, compiled to WebAssembly",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:wasm": "make -C .. wasm",
+    "build:js": "tsup src/index.ts --format esm,cjs --dts --external ''",
+    "build": "npm run build:wasm && npm run build:js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "sqlite",
+    "sql",
+    "parser",
+    "ast",
+    "wasm",
+    "webassembly"
+  ],
+  "license": "MIT"
+}
