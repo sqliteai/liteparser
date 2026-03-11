@@ -4,6 +4,10 @@
 ** Self-contained SQL parser producing a visitable AST.
 ** All AST memory is managed via arena allocation.
 */
+//
+// (c) 2026 Marco Bambini - SQLite AI
+//
+
 #pragma once
 
 #define LITEPARSER_VERSION "1.0.0"

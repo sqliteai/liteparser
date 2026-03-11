@@ -1,6 +1,9 @@
 /*
 ** liteparser.c — Main implementation: node builders, visitor, JSON serializer.
 */
+//
+// (c) 2026 Marco Bambini - SQLite AI
+//
 
 #include "liteparser.h"
 #include "liteparser_internal.h"

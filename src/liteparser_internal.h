@@ -1,6 +1,10 @@
 /*
 ** liteparser_internal.h — Internal helpers used by parse.y grammar actions.
 */
+//
+// (c) 2026 Marco Bambini - SQLite AI
+//
+
 #pragma once
 
 #include "liteparser.h"

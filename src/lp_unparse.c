@@ -3,6 +3,9 @@
 **
 ** Converts an AST back to SQL text. Output is written to a char* via LpBuf.
 */
+//
+// (c) 2026 Marco Bambini - SQLite AI
+//
 
 #include "liteparser.h"
 #include "liteparser_internal.h"
