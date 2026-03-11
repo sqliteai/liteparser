@@ -63,6 +63,32 @@ Every statement that parses successfully also round-trips perfectly: parsing, un
 
 Additionally, a hand-written test suite of **485 unit tests** covers individual grammar rules, edge cases, error recovery, and the mutation API.
 
+### Fuzz Testing
+
+liteparser includes an extensive fuzz testing harness (`fuzz/fuzz_parse.c`) that exercises all parser modes, JSON serialization, SQL unparsing, AST walking, node cloning, equality checking, and roundtrip verification (parse → unparse → re-parse → equality).
+
+The fuzzer uses 126 seed SQL templates covering every grammar production, with a built-in mutation engine that applies SQL-aware mutations: keyword injection, expression splicing, byte flipping, chunk duplication, and cross-seed recombination.
+
+```bash
+make fuzz              # Standalone fuzzer, 1M iterations
+make fuzz-asan         # AddressSanitizer + UBSan (catches memory errors)
+make fuzz-libfuzzer    # clang libFuzzer with coverage-guided fuzzing
+```
+
+The standalone fuzzer accepts options:
+
+```bash
+./fuzz/fuzz_parse --iterations 5000000 --seed 42 --max-len 8192
+```
+
+| Metric | Result |
+|--------|--------|
+| Iterations tested | **1,000,000+** |
+| Crashes | **0** |
+| ASan/UBSan violations | **0** |
+| Successful parses | ~10% of mutated inputs |
+| Tolerant-mode recoveries | ~242k statements from ~1.6M errors |
+
 ## Building
 
 Requires a C compiler (tested with clang and gcc). No other dependencies.
@@ -74,6 +100,8 @@ make wasm         # Build WebAssembly module (requires emscripten)
 make debug        # Debug build (-g -O0)
 make test         # Build and run the unit test suite
 make test-suite   # Run the full SQLite-extracted test suite
+make fuzz          # Run fuzz testing (1M iterations)
+make fuzz-asan     # Fuzz with AddressSanitizer + UBSan
 make clean        # Remove all build artifacts
 ```
 
@@ -187,72 +215,11 @@ SQL: SELECT * FROM users WHERE age > 18;
 
 ## WebAssembly (WASM)
 
-liteparser compiles to WebAssembly for use in browsers, Node.js, and any JavaScript runtime. The WASM build produces a self-contained ES module with the binary inlined (no separate `.wasm` file to load).
-
-### Building the WASM Module
-
-Requires [Emscripten](https://emscripten.org/):
+liteparser compiles to WebAssembly for use in browsers, Node.js, and any JavaScript runtime. See [WASM.md](WASM.md) for full documentation, JavaScript API reference, and usage examples.
 
 ```bash
 make wasm          # Produces wasm/dist/liteparser.mjs
 ```
-
-### Installing the npm Package
-
-```bash
-cd wasm
-npm install        # Install dev dependencies
-npm run build      # Build WASM + TypeScript wrapper
-npm test           # Run test suite
-```
-
-### JavaScript API
-
-```typescript
-import { createLiteParser } from '@sqliteai/liteparser';
-
-const parser = await createLiteParser();
-
-// Parse a single statement → JS object
-const ast = parser.parse('SELECT * FROM users WHERE age > 18');
-console.log(ast.kind);       // "STMT_SELECT"
-console.log(ast.where);      // { kind: "EXPR_BINARY_OP", op: ">", ... }
-
-// Parse multiple statements
-const stmts = parser.parseAll('SELECT 1; SELECT 2; SELECT 3');
-console.log(stmts.length);   // 3
-
-// Tolerant parse (IDE mode) — never throws, returns errors alongside valid statements
-const result = parser.parseTolerant('SELECT 1; GARBAGE; SELECT 2');
-console.log(result.stmts);   // 2 valid statements
-console.log(result.errors);  // [{ code: "syntax", message: "...", pos: {...} }]
-
-// Get raw JSON string (avoids JSON.parse overhead if forwarding)
-const json = parser.parseToJson('SELECT 1', { pretty: true });
-
-// Round-trip: parse SQL → AST → SQL
-const sql = parser.unparse('SELECT  a ,  b   FROM  t');
-console.log(sql);            // "SELECT a, b FROM t;"
-
-// Library version
-console.log(parser.version()); // "1.0.0"
-
-// Free WASM resources when done
-parser.destroy();
-```
-
-### API Summary
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `parse(sql)` | `AstNode` | Parse a single statement, throw on error |
-| `parseAll(sql)` | `AstNode[]` | Parse multiple semicolon-separated statements |
-| `parseTolerant(sql)` | `{ stmts, errors }` | Parse with error recovery (never throws) |
-| `parseToJson(sql, opts?)` | `string` | Parse to raw JSON string |
-| `parseTolerantToJson(sql, opts?)` | `string` | Tolerant parse to raw JSON string |
-| `unparse(sql)` | `string` | Parse and reconstruct SQL from AST |
-| `version()` | `string` | Library version |
-| `destroy()` | `void` | Free all WASM resources |
 
 ## API Reference
 

@@ -30,7 +30,7 @@ endif
 LEMON     = ./lemon
 LEMON_SRC = $(SQLITE_SRC)/tool/lemon.c
 
-.PHONY: all clean test test-suite debug shared regen wasm
+.PHONY: all clean test test-suite debug shared regen wasm fuzz fuzz-asan fuzz-libfuzzer
 
 all: sqlparse
 
@@ -83,6 +83,35 @@ test/test_sqlite_suite: test/test_sqlite_suite.c libliteparser.a
 test-suite: test/test_sqlite_suite test/sqlite_test.sql
 	./test/test_sqlite_suite --roundtrip test/sqlite_test.sql
 
+# --- Fuzz testing ---
+
+FUZZ_DIR = fuzz
+FUZZ_CFLAGS = -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -g -O1 -DNDEBUG
+
+# Standalone fuzzer (built-in mutator, no dependencies)
+fuzz/fuzz_parse: fuzz/fuzz_parse.c libliteparser.a
+	$(CC) $(FUZZ_CFLAGS) -I$(SRCDIR) -o $@ $< -L. -lliteparser
+
+fuzz: fuzz/fuzz_parse
+	./fuzz/fuzz_parse --iterations 1000000
+
+# ASan + UBSan fuzzer (catches memory errors)
+fuzz/fuzz_parse_asan: fuzz/fuzz_parse.c $(LIB_SRCS) $(HDRS)
+	$(CC) $(FUZZ_CFLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer \
+	  -I$(SRCDIR) -o $@ fuzz/fuzz_parse.c $(LIB_SRCS)
+
+fuzz-asan: fuzz/fuzz_parse_asan
+	./fuzz/fuzz_parse_asan --iterations 500000
+
+# libFuzzer target (requires clang)
+fuzz/fuzz_parse_libfuzzer: fuzz/fuzz_parse.c $(LIB_SRCS) $(HDRS)
+	clang $(FUZZ_CFLAGS) -fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer \
+	  -DUSE_LIBFUZZER -I$(SRCDIR) -o $@ fuzz/fuzz_parse.c $(LIB_SRCS)
+
+fuzz-libfuzzer: fuzz/fuzz_parse_libfuzzer
+	mkdir -p fuzz/corpus
+	./fuzz/fuzz_parse_libfuzzer fuzz/corpus/ -max_len=4096 -jobs=4
+
 # --- Debug build ---
 
 debug: CFLAGS = $(DEBUG_CFLAGS)
@@ -94,6 +123,7 @@ clean:
 	rm -f $(SRCDIR)/*.o libliteparser.a *.dylib *.so
 	rm -f sqlparse lemon
 	rm -f test/test_runner test/test_sqlite_suite
+	rm -f fuzz/fuzz_parse fuzz/fuzz_parse_asan fuzz/fuzz_parse_libfuzzer
 
 # --- WASM build (requires emscripten) ---
 
